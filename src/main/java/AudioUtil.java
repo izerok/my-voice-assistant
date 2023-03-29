@@ -3,10 +3,14 @@ import javazoom.jl.player.Player;
 
 import javax.sound.sampled.*;
 
+/**
+ * 音频工具类
+ */
 public class AudioUtil {
     public static void playAudio(String filePath) {
         try {
-            new Player(FileUtil.getInputStream(filePath)).play();
+            Player player = new Player(FileUtil.getInputStream(filePath));
+            player.play();
         } catch (Exception e) {
             LocalApi.log.info("播放音频失败");
             LocalApi.log.error(e);

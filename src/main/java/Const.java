@@ -1,4 +1,8 @@
+import cn.hutool.core.io.FileUtil;
+import cn.hutool.core.util.RandomUtil;
 import lombok.Getter;
+
+import java.io.File;
 
 @Getter
 public enum Const {
@@ -12,7 +16,8 @@ public enum Const {
     CONFIG_FILE_NAME("config.json", null, "配置文件名", false),
 
     TEMP_DIR("temp", null, "临时文件夹", false),
-    STORE_DIR("store", null, "存储文件夹", false),
+    WAKEUP_DIR("wakeup", null, "唤醒音频文件", false),
+    THINKING_DIR("thinking", null, "思考音频文件", false),
 
     /**
      * 声音相关文件名
@@ -21,6 +26,8 @@ public enum Const {
     TEMP_RECORD_FILE_NAME("temp_record.wav", null, "临时录音文件名", false),
     ZAINE_FILE_NAME("zaine.wav", null, "被唤醒时播放的音频文件名", false),
     SIKAOYIXIA_FILE_NAME("sikaoyixia.wav", null, "思考一下", false),
+    //我在听
+    WOZAITING_FILE_NAME("wozaiting.wav", null, "我在听", false),
 
     /**
      * 日志相关
@@ -34,9 +41,6 @@ public enum Const {
     INPUT_SAMPLE_RATE("inputSampleRate", 16000, "采样率", false),
     INPUT_SAMPLE_SIZE_IN_BITS("inputSampleSizeInBits", 16, "采样位数", false),
     INPUT_AUDIO_DEVICE_NUM("inputAudioDeviceNum", 0, "输入音频设备编号", false),
-    OUTPUT_SAMPLE_RATE("outputSampleRate", 24000, "采样率", false),
-    OUTPUT_SAMPLE_SIZE_IN_BITS("outputSampleSizeInBits", 16, "采样位数", false),
-    OUTPUT_AUDIO_DEVICE_NUM("outputAudioDeviceNum", 0, "输入音频设备编号", false),
 
 
     /**
@@ -96,7 +100,25 @@ public enum Const {
         return SYS_PATH.getKeyName() + "/" + TEMP_DIR.getKeyName() + "/" + constEnum.getKeyName();
     }
 
-    public static String getStoreFilePath(Const constEnum) {
-        return SYS_PATH.getKeyName() + "/" + STORE_DIR.getKeyName() + "/" + constEnum.getKeyName();
+
+
+    public static String getWakeUpFilePathByRandom() {
+        // 获取store下的所有文件
+        File[] allFile = FileUtil.ls(SYS_PATH.getKeyName() + "/" + WAKEUP_DIR.getKeyName());
+        if (allFile.length == 0) {
+            return null;
+        }
+        // 随机获取一个文件名
+        return SYS_PATH.getKeyName() + "/" + WAKEUP_DIR.getKeyName() + "/" + RandomUtil.randomEle(allFile).getName();
+    }
+
+    public static String getThinkingFilePathByRandom() {
+        // 获取store下的所有文件
+        File[] allFile = FileUtil.ls(SYS_PATH.getKeyName() + "/" + THINKING_DIR.getKeyName());
+        if (allFile.length == 0) {
+            return null;
+        }
+        // 随机获取一个文件名
+        return SYS_PATH.getKeyName() + "/" + THINKING_DIR.getKeyName() + "/" + RandomUtil.randomEle(allFile).getName();
     }
 }

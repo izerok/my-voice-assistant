@@ -1,3 +1,4 @@
+import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.thread.ThreadUtil;
 
@@ -33,10 +34,12 @@ public class RealTimeVolumeRecorder implements Runnable {
         this.outputFilePath = outputFilePath;
         this.inputFormat = audioFormat;
         this.inputLine = targetDataLine;
-        this.maxRecordTime = maxRecordTime;
+
+
+        this.maxRecordTime = maxRecordTime * 1000;
 
         this.volumeThreshold = volumeThreshold;
-        this.lowVolumeDuration = lowVolumeDuration;
+        this.lowVolumeDuration = lowVolumeDuration * 1000;
 
         bufferSize = (int) (audioFormat.getSampleRate() * audioFormat.getFrameSize() / 10);
         outputStream = new ByteArrayOutputStream();
@@ -71,24 +74,25 @@ public class RealTimeVolumeRecorder implements Runnable {
                 int bytesRead = inputLine.read(buffer, 0, buffer.length);
                 int volume = calculateVolume(buffer, bytesRead);
                 int volumePercentage = convertVolumeToPercentage(volume);
-                LocalApi.log.info("当前音量:{}", volumePercentage);
+                LocalApi.log.info("{}--当前音量:{}", DateUtil.now(), volumePercentage);
                 outputStream.write(buffer, 0, bytesRead);
-
-                // 检查音量百分比是否低于阈值
-                if (volumePercentage < volumeThreshold) {
-                    if (lowVolumeStartTime == 0) {
-                        LocalApi.log.info("当前音量低于阈值，开始计时。:{}", LocalDateTime.now());
-                        lowVolumeStartTime = System.currentTimeMillis();
-                    } else if (System.currentTimeMillis() - (lowVolumeStartTime * 1000) >= lowVolumeDuration) {
-
-                        LocalApi.log.info("连续{}秒音量低于阈值，自动结束录音。:{}", lowVolumeDuration, LocalDateTime.now());
-                        break;
-                    }
-                } else {
+                if (volumePercentage >= volumeThreshold) {
+                    // 当前音量大于阈值，重置开始时间
                     lowVolumeStartTime = 0;
                 }
+                // 当前音量低于阈值，开始计时 如果是第一次低于阈值，记录开始时间
+                if (lowVolumeStartTime == 0) {
+                    LocalApi.log.info("当前音量低于阈值，开始计时。:{}", LocalDateTime.now());
+                    lowVolumeStartTime = System.currentTimeMillis();
+                }
+                // 如果当前时间 - 开始时间 >= 连续低于阈值的时长，自动结束录音
+                if (DateUtil.spendMs(lowVolumeStartTime) >= lowVolumeDuration) {
+                    LocalApi.log.info("连续{}秒音量低于阈值，自动结束录音。:{}", lowVolumeDuration, LocalDateTime.now());
+                    break;
+                }
 
-                if (System.currentTimeMillis() - startTime >= maxRecordTime * 1000L) {
+
+                if (DateUtil.spendMs(startTime) >= maxRecordTime) {
                     LocalApi.log.info("录音时间超过最大录音时间{}秒，自动结束录音。", maxRecordTime);
                     break;
                 }

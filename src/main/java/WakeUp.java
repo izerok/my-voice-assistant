@@ -78,6 +78,7 @@ public class WakeUp {
             // 如果结果大于等于0，执行本地API
             if (result >= 0) {
                 localApi.run();
+                LocalApi.log.info("等待唤醒");
             }
         }
     }

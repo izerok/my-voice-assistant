@@ -1,7 +1,6 @@
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.io.resource.FileResource;
 import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.core.util.ObjectUtil;
 import cn.hutool.http.HttpUtil;
@@ -34,10 +33,6 @@ public class LocalApi {
     private Integer inputSampleRate;
     private Integer inputSampleSizeInBits;
     private Integer inputAudioDeviceNum;
-
-    private Integer outputSampleRate;
-    private Integer outputSampleSizeInBits;
-    private Integer outputAudioDeviceNum;
 
     // maxRecordTime
     private Integer maxRecordTime;
@@ -83,36 +78,45 @@ public class LocalApi {
                 Const.getAudioTempFilePath(Const.TEMP_RECORD_FILE_NAME),
                 volumeThreshold, lowVolumeDuration, maxRecordTime);
         aipSpeech = new AipSpeech(baiduAppId, baiduApiKey, baiduSecretKey);
-        log.info("等待唤醒");
     }
 
     public void run() {
 
-        AudioUtil.playAudio(new FileResource(Const.ZAINE_FILE_NAME.getKeyName()).getFile().getPath());
+        AudioUtil.playAudio(Const.getWakeUpFilePathByRandom());
 
         log.info("{}--1.开始录音", DateUtil.now());
         recorder.start();
         log.info("{}--1.录音结束", DateUtil.now());
 
+        AudioUtil.playAudio(Const.getThinkingFilePathByRandom());
+
         log.info("{}--2.开始获取ASR结果", DateUtil.now());
         String asr = getBaiDuASR(Const.getAudioTempFilePath(Const.TEMP_RECORD_FILE_NAME));
-        log.info("{}--2.获取ASR结果结束{}", DateUtil.now(), asr);
+        log.info("{}--2.获取ASR结果结束,结果{}", DateUtil.now(), asr);
+        if (CharSequenceUtil.isBlank(asr)) {
+            log.info("当前对话结束");
+            return;
+        }
 
         log.info("{}--3.开始获取NLP结果", DateUtil.now());
         String answer = getNLPAnswer(asr);
-        log.info("{}--3.获取NLP结果结束{}", DateUtil.now(), answer);
+        log.info("{}--3.获取NLP结果结束,结果{}", DateUtil.now(), answer);
+        if (CharSequenceUtil.isBlank(answer)) {
+            log.info("当前对话结束");
+            return;
+        }
 
-        //5.将文本生成音频
         log.info("{}--4.开始生成音频", DateUtil.now());
-        this.getBaiDuTTS(answer, Const.getAudioTempFilePath(Const.TEMP_TTS_FILE_NAME));
+        boolean successFlag = this.getBaiDuTTS(answer, Const.getAudioTempFilePath(Const.TEMP_TTS_FILE_NAME));
         log.info("{}--4.生成音频结束", DateUtil.now());
+        if (!successFlag) {
+            log.info("当前对话结束");
+            return;
+        }
 
-        //6.播放至声音
         log.info("{}--5.开始播放声音", DateUtil.now());
         AudioUtil.playAudio(Const.getAudioTempFilePath(Const.TEMP_TTS_FILE_NAME));
         log.info("{}--5.播放结束", DateUtil.now());
-
-        log.info("等待唤醒");
     }
 
 
@@ -136,7 +140,6 @@ public class LocalApi {
             log.info("初始化完成:{}", JSONUtil.toJsonPrettyStr(this));
             //初始化音频
             initInputAudio();
-            initOutputAudio();
         } catch (Exception e) {
             log.error("加载配置异常", e);
         }
@@ -179,15 +182,6 @@ public class LocalApi {
         inputLine = AudioUtil.getInputAudioDevice(inputAudioDeviceNum, new DataLine.Info(TargetDataLine.class, inputFormat));
     }
 
-    /**
-     * 初始化输出音频
-     */
-    private void initOutputAudio() {
-        outputFormat = new AudioFormat(outputSampleRate, outputSampleSizeInBits, 1, true, false);
-        outputDataLineInfo = new DataLine.Info(SourceDataLine.class, outputFormat);
-        outputLine = AudioUtil.getOutputAudioDevice(outputAudioDeviceNum, new DataLine.Info(SourceDataLine.class, outputFormat));
-    }
-
 
     private String getNLPAnswer(String question) {
         JSONObject reqBody = new JSONObject();
@@ -199,39 +193,42 @@ public class LocalApi {
                 .execute().body();
         log.info("NLP响应:{}", result);
         if (CharSequenceUtil.isBlank(result)) {
-            log.info("等待唤醒");
-            throw new RuntimeException("NLP返回结果为空");
+            return null;
         }
         String answer = JSONUtil.getByPath(new JSONObject(result), nlpResponseKey, "");
         if (CharSequenceUtil.isBlank(answer)) {
-            log.info("等待唤醒");
-            throw new RuntimeException("NLP返回结果为空");
+            return null;
         }
 
         return answer;
     }
 
-    private void getBaiDuTTS(String answer, String filePath) {
-        TtsResponse res = aipSpeech.synthesis(answer, "zh", 1, null);
+    private boolean getBaiDuTTS(String answer, String filePath) {
+        try {
+            TtsResponse res = aipSpeech.synthesis(answer, "zh", 1, null);
 
-        byte[] data = res.getData();
-        FileUtil.del(filePath);
-        File file = FileUtil.newFile(filePath);
-        FileUtil.touch(file);
-        //把二进制流写入文件
-        FileUtil.writeBytes(data, file);
+            byte[] data = res.getData();
+            FileUtil.del(filePath);
+            File file = FileUtil.newFile(filePath);
+            FileUtil.touch(file);
+            //把二进制流写入文件
+            FileUtil.writeBytes(data, file);
+        } catch (Exception e) {
+            log.error("生成音频异常", e);
+            return false;
+        }
+        return true;
     }
 
     private String getBaiDuASR(String filePath) {
         // 识别本地文件
-        org.json.JSONObject asrRes = aipSpeech.asr(filePath, "wav", inputSampleSizeInBits, null);
+        org.json.JSONObject asrRes = aipSpeech.asr(filePath, "wav", inputSampleRate, null);
         log.info("识别结果:{}", asrRes);
         if (asrRes.has("result")) {
             String question = asrRes.getJSONArray("result").get(0).toString();
             log.info("识别结果:{}", question);
             return question;
         }
-        throw new RuntimeException("识别结果为空");
+        return null;
     }
-
 }
