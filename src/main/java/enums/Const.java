@@ -1,3 +1,5 @@
+package enums;
+
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.util.RandomUtil;
 import lombok.Getter;
@@ -26,12 +28,6 @@ public enum Const {
     SIKAOYIXIA_FILE_NAME("sikaoyixia.wav", null, "思考一下", false),
 
     /**
-     * 日志相关
-     */
-    LOG_LEVEL("logLevel", "info", "日志级别", false),
-
-
-    /**
      * 音频设备相关配置
      */
     INPUT_SAMPLE_RATE("inputSampleRate", 16000, "采样率", false),
@@ -54,7 +50,6 @@ public enum Const {
     BAIDU_API_KEY("baiduApiKey", null, "百度语音ApiKey", true),
     BAIDU_SECRET_KEY("baiduSecretKey", null, "百度语音SecretKey", true),
     //openai相关配置
-    // openaikey
     OPENAI_KEY("openaiKey", null, "openaiKey", true),
     OPENAI_HOST("openaiHost", null, "openaiHost", true),
     ;

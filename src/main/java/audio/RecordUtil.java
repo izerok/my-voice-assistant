@@ -1,6 +1,9 @@
+package audio;
+
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.thread.ThreadUtil;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sound.sampled.*;
 import java.io.ByteArrayInputStream;
@@ -10,8 +13,8 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
-public class RealTimeVolumeRecorder implements Runnable {
+@Slf4j
+public class RecordUtil implements Runnable {
 
 
     private static final int MAX_16_BIT_SAMPLE = 32767; // 16位音频的最大值
@@ -26,7 +29,7 @@ public class RealTimeVolumeRecorder implements Runnable {
     private final ByteArrayOutputStream outputStream;
 
 
-    private boolean recodingFlag = false;
+    private boolean recodingFlag;
     // 最大录音时长
     private int maxRecordTime = 10;
     // 录音的音量阈值 如果低于该阈值x秒，则停止录音 高于该阈值则开始录音
@@ -35,10 +38,10 @@ public class RealTimeVolumeRecorder implements Runnable {
     private int lessRecordVolumeTime = 2;
 
 
-    public RealTimeVolumeRecorder(AudioFormat audioFormat, TargetDataLine targetDataLine, String outputFilePath,
-                                  int maxRecordTime,
-                                  int recordVolumePercent,
-                                  int lessRecordVolumeTime) {
+    public RecordUtil(AudioFormat audioFormat, TargetDataLine targetDataLine, String outputFilePath,
+                      int maxRecordTime,
+                      int recordVolumePercent,
+                      int lessRecordVolumeTime) {
         this.outputFilePath = outputFilePath;
         this.inputFormat = audioFormat;
         this.inputLine = targetDataLine;
@@ -47,13 +50,14 @@ public class RealTimeVolumeRecorder implements Runnable {
         this.maxRecordTime = maxRecordTime * 1000;
         this.recordVolumePercent = recordVolumePercent;
         this.lessRecordVolumeTime = lessRecordVolumeTime * 1000;
-        LocalApi.log.info("最大录音时长：{}秒", this.maxRecordTime/1000);
-        LocalApi.log.info("录音的音量阈值：{}%", this.recordVolumePercent);
-        LocalApi.log.info("未达标录音音量阈值：{}秒", this.lessRecordVolumeTime/1000);
+        log.info("最大录音时长：{}秒", this.maxRecordTime/1000);
+        log.info("录音的音量阈值：{}%", this.recordVolumePercent);
+        log.info("未达标录音音量阈值：{}秒", this.lessRecordVolumeTime/1000);
 
         bufferSize = (int) (audioFormat.getSampleRate() * audioFormat.getFrameSize() / 10);
         outputStream = new ByteArrayOutputStream();
 
+        recodingFlag = false;
     }
 
     public void start() {
@@ -92,12 +96,12 @@ public class RealTimeVolumeRecorder implements Runnable {
                 int volume = calculateVolume(buffer, bytesRead);
                 // 当前音量百分比
                 int volumePercentage = convertVolumeToPercentage(volume);
-                LocalApi.log.debug("当前音量百分比：{}", volumePercentage);
+                log.debug("当前音量百分比：{}", volumePercentage);
                 // 如果当前音量大于阈值，开始录音 且没有开始录音，则开始录音
                 if (volumePercentage >= recordVolumePercent && !recodingFlag) {
                     recodingFlag = true;
                     recordStartTime = System.currentTimeMillis();
-                    LocalApi.log.info("当前音量大于阈值，开始录音。:{}", LocalDateTime.now());
+                    log.info("当前音量大于阈值，开始录音。:{}", LocalDateTime.now());
                 }
                 // 如果已经开始录音，则将流写入到文件中
                 if (recodingFlag) {
@@ -112,14 +116,14 @@ public class RealTimeVolumeRecorder implements Runnable {
                     }
                     // 如果当前时间与开始时间的差值大于阈值，则停止录音
                     if (DateUtil.spendMs(lessVolumePercentStartTime) >= lessRecordVolumeTime) {
-                        LocalApi.log.info("连续{}秒音量低于阈值，自动结束录音。:{}", lessRecordVolumeTime, LocalDateTime.now());
+                        log.info("连续{}秒音量低于阈值，自动结束录音。:{}", lessRecordVolumeTime, LocalDateTime.now());
                         recodingFlag = false;
                         break;
                     }
                 }
                 // 如果当前录音时间大于最大录音时间，则停止录音并将流写入到文件中
                 if (recodingFlag && DateUtil.spendMs(recordStartTime) >= maxRecordTime) {
-                    LocalApi.log.info("录音时间超过{}秒，自动结束录音。:{}", maxRecordTime, LocalDateTime.now());
+                    log.info("录音时间超过{}秒，自动结束录音。:{}", maxRecordTime, LocalDateTime.now());
                     recodingFlag = false;
                     break;
                 }
