@@ -16,7 +16,6 @@ public enum Const {
     CONFIG_FILE_NAME("config.json", null, "配置文件名", false),
 
     TEMP_DIR("temp", null, "临时文件夹", false),
-    WAKEUP_DIR("wakeup", null, "唤醒音频文件", false),
     THINKING_DIR("thinking", null, "思考音频文件", false),
 
     /**
@@ -24,10 +23,7 @@ public enum Const {
      */
     TEMP_TTS_FILE_NAME("temp_tts.wav", null, "临时TTS文件名", false),
     TEMP_RECORD_FILE_NAME("temp_record.wav", null, "临时录音文件名", false),
-    ZAINE_FILE_NAME("zaine.wav", null, "被唤醒时播放的音频文件名", false),
     SIKAOYIXIA_FILE_NAME("sikaoyixia.wav", null, "思考一下", false),
-    //我在听
-    WOZAITING_FILE_NAME("wozaiting.wav", null, "我在听", false),
 
     /**
      * 日志相关
@@ -46,28 +42,10 @@ public enum Const {
     /**
      * 音频阈值相关配置
      */
-    RECORD_TIME("maxRecordTime", 10, "录音时长", false),
-    VOLUME_THRESHOLD("volumeThreshold", 4, "音量阈值", false),
-    LOW_VOLUME_DURATION("lowVolumeDuration", 2, "连续低音量持续时间", false),
+    MAX_RECORD_TIME("maxRecordTime", 10, "最大录音时长", false),
+    RECORD_VOLUME_PERCENT("recordVolumePercent", 5, "录音的音量阈值 如果低于该阈值x秒，则停止录音 高于该阈值则开始录音", false),
+    LESS_RECORD_VOLUME_TIME("lessRecordVolumeTime", 2, "未达标录音音量阈值x秒", false),
 
-
-    /**
-     * Porcupine唤醒相关配置
-     */
-    SENSITIVITIES("sensitivities", 0.5f, "唤醒灵敏度", false),
-    MODEL_PATH("modelPath", null, "唤醒模型路径", true),
-    ACCESS_KEY("accessKey", null, "Porcupine-key", true),
-
-
-    /**
-     * 接口地址相关配置
-     */
-    NLP_URL("nlpUrl", null, "NLP接口地址", true),
-    NLP_URL_HEADER("nlpUrlHeader", null, "NLP接口地址请求头", false),
-    NLP_REQUEST_KEY("nlpRequestKey", null, "NLP接口请求key", true),
-    NLP_RESPONSE_KEY("nlpResponseKey", null, "NLP接口返回key", true),
-    NLP_REQUEST_HEADER("nlpRequestHeader", null, "NLP接口请求头", false),
-    NLP_REQUEST_HEADER_VALUE("nlpRequestHeaderValue", null, "NLP接口请求头值", false),
 
     /**
      * 百度语音相关配置
@@ -75,7 +53,10 @@ public enum Const {
     BAIDU_APP_ID("baiduAppId", null, "百度语音AppId", true),
     BAIDU_API_KEY("baiduApiKey", null, "百度语音ApiKey", true),
     BAIDU_SECRET_KEY("baiduSecretKey", null, "百度语音SecretKey", true),
-
+    //openai相关配置
+    // openaikey
+    OPENAI_KEY("openaiKey", null, "openaiKey", true),
+    OPENAI_HOST("openaiHost", null, "openaiHost", true),
     ;
 
     private final String keyName;
@@ -100,17 +81,6 @@ public enum Const {
         return SYS_PATH.getKeyName() + "/" + TEMP_DIR.getKeyName() + "/" + constEnum.getKeyName();
     }
 
-
-
-    public static String getWakeUpFilePathByRandom() {
-        // 获取store下的所有文件
-        File[] allFile = FileUtil.ls(SYS_PATH.getKeyName() + "/" + WAKEUP_DIR.getKeyName());
-        if (allFile.length == 0) {
-            return null;
-        }
-        // 随机获取一个文件名
-        return SYS_PATH.getKeyName() + "/" + WAKEUP_DIR.getKeyName() + "/" + RandomUtil.randomEle(allFile).getName();
-    }
 
     public static String getThinkingFilePathByRandom() {
         // 获取store下的所有文件

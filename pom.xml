@@ -24,11 +24,6 @@
             <version>5.8.15</version>
         </dependency>
         <dependency>
-            <groupId>ai.picovoice</groupId>
-            <artifactId>picovoice-java</artifactId>
-            <version>2.1.5</version>
-        </dependency>
-        <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <version>1.18.26</version>
@@ -42,6 +37,11 @@
             <groupId>javazoom</groupId>
             <artifactId>jlayer</artifactId>
             <version>1.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>com.unfbx</groupId>
+            <artifactId>chatgpt-java</artifactId>
+            <version>1.0.8</version>
         </dependency>
     </dependencies>
     <build>
@@ -65,7 +65,7 @@
                     </descriptorRefs>
                     <archive>
                         <manifest>
-                            <mainClass>WakeUp</mainClass>
+                            <mainClass>AlwaysTalk</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

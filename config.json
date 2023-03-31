@@ -1,11 +1,8 @@
 {
-  "modelPath": "",
-  "accessKey": "",
-  "nlpUrl": "",
-  "nlpRequestKey": "",
-  "nlpResponseKey": "",
-  "nlpRequestHeader": "",
-  "nlpRequestHeaderValue": "",
+  "openaiKey": [
+    ""
+  ],
+  "openaiHost": "",
   "baiduAppId": "",
   "baiduApiKey": "",
   "baiduSecretKey": ""

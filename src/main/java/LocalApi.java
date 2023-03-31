@@ -1,10 +1,9 @@
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollStreamUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.io.FileUtil;
 import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.core.util.ObjectUtil;
-import cn.hutool.http.HttpUtil;
-import cn.hutool.http.Method;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
 import cn.hutool.log.Log;
@@ -12,14 +11,20 @@ import cn.hutool.log.LogFactory;
 import cn.hutool.log.level.Level;
 import com.baidu.aip.speech.AipSpeech;
 import com.baidu.aip.speech.TtsResponse;
+import com.unfbx.chatgpt.OpenAiClient;
+import com.unfbx.chatgpt.entity.chat.ChatChoice;
+import com.unfbx.chatgpt.entity.chat.ChatCompletion;
+import com.unfbx.chatgpt.entity.chat.ChatCompletionResponse;
+import com.unfbx.chatgpt.entity.chat.Message;
 import lombok.Data;
 
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.DataLine;
-import javax.sound.sampled.SourceDataLine;
 import javax.sound.sampled.TargetDataLine;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data
 public class LocalApi {
@@ -34,30 +39,18 @@ public class LocalApi {
     private Integer inputSampleSizeInBits;
     private Integer inputAudioDeviceNum;
 
-    // maxRecordTime
+    // 最大录音时长
     private Integer maxRecordTime;
-    private int volumeThreshold; // 自定义音量阈值（百分比）
-    private int lowVolumeDuration; // 连续低于阈值的时长（毫秒）
+    // 录音的音量阈值 如果低于该阈值x秒，则停止录音 高于该阈值则开始录音
+    private int recordVolumePercent;
+    // 未达标录音音量阈值x秒
+    private int lessRecordVolumeTime;
 
-    private Float sensitivities;
-    private String modelPath;
-    //Porcupine-key
-    private String accessKey;
-
-    private String nlpUrl;
-    private String nlpRequestKey;
-    private String nlpResponseKey;
-    private String nlpRequestHeader;
-    private String nlpRequestHeaderValue;
 
     //音频相关配置
     private AudioFormat inputFormat;
-    private AudioFormat outputFormat;
     private TargetDataLine inputLine;
-    private SourceDataLine outputLine;
-
     private DataLine.Info inputDataLineInfo;
-    private DataLine.Info outputDataLineInfo;
 
     /**
      * 百度语音相关配置
@@ -69,20 +62,31 @@ public class LocalApi {
     private RealTimeVolumeRecorder recorder;
     private AipSpeech aipSpeech;
 
-    private static int deviceNum;
+    // 获取当前对话的上下文
+    List<Message> talkHistory = new ArrayList<>();
+    private OpenAiClient openAiClient;
+
+    private List<String> openaiKey;
+    private String openaiHost;
 
     //初始化
     public LocalApi() {
         loadConfig();
+        // 初始化录音
         recorder = new RealTimeVolumeRecorder(inputFormat, inputLine,
                 Const.getAudioTempFilePath(Const.TEMP_RECORD_FILE_NAME),
-                volumeThreshold, lowVolumeDuration, maxRecordTime);
+                maxRecordTime, recordVolumePercent, lessRecordVolumeTime);
+        // 初始化百度语音
         aipSpeech = new AipSpeech(baiduAppId, baiduApiKey, baiduSecretKey);
+        // 初始化openai
+        openAiClient = OpenAiClient.builder()
+                .apiKey(openaiKey)
+                .apiHost(CharSequenceUtil.isBlank(this.openaiHost) ? "https://api.openai.com/" : this.openaiHost)
+                .build();
+
     }
 
     public void run() {
-
-        AudioUtil.playAudio(Const.getWakeUpFilePathByRandom());
 
         log.info("{}--1.开始录音", DateUtil.now());
         recorder.start();
@@ -184,23 +188,29 @@ public class LocalApi {
 
 
     private String getNLPAnswer(String question) {
-        JSONObject reqBody = new JSONObject();
-        reqBody.set(nlpRequestKey, question);
-        //4.调用NLP
-        String result = HttpUtil.createRequest(Method.POST, nlpUrl)
-                .body(reqBody.toString())
-                .header(nlpRequestHeader, nlpRequestHeaderValue)
-                .execute().body();
-        log.info("NLP响应:{}", result);
-        if (CharSequenceUtil.isBlank(result)) {
-            return null;
-        }
-        String answer = JSONUtil.getByPath(new JSONObject(result), nlpResponseKey, "");
-        if (CharSequenceUtil.isBlank(answer)) {
-            return null;
-        }
+        // 获取当前对话的上下文
+        log.info("当前对话的上下文: {}", JSONUtil.toJsonStr(talkHistory));
 
-        return answer;
+        // 组装问题
+        Message message = Message.builder().content(question).role(Message.Role.USER).build();
+        talkHistory.add(message);
+        String aiAnswer = null;
+        try {
+            // 组装AI请求参数
+            ChatCompletion completion = ChatCompletion.builder()
+                    .model(ChatCompletion.Model.GPT_3_5_TURBO.getName())
+                    .user("zerozzccccccc")
+                    .messages(talkHistory).build();
+
+            // 调用AI接口
+            ChatCompletionResponse completions = openAiClient.chatCompletion(completion);
+
+            // 格式化AI回复内容
+            aiAnswer = contentFormat(completions);
+        } catch (Exception e) {
+            log.error("调用AI接口异常", e);
+        }
+        return aiAnswer;
     }
 
     private boolean getBaiDuTTS(String answer, String filePath) {
@@ -230,5 +240,18 @@ public class LocalApi {
             return question;
         }
         return null;
+    }
+
+    /**
+     * 格式化AI回复内容
+     *
+     * @param completions AI回复内容
+     * @return 格式化后的内容
+     */
+    private String contentFormat(ChatCompletionResponse completions) {
+        List<Message> messages = CollStreamUtil.toList(completions.getChoices(), ChatChoice::getMessage);
+        List<String> result = CollStreamUtil.toList(messages, Message::getContent);
+        String join = CharSequenceUtil.join("", result);
+        return CharSequenceUtil.replace(join, "\n\n", "\n");
     }
 }
